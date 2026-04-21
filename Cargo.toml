@@ -1,0 +1,24 @@
+[package]
+name = "edge-analytics"
+version = "0.1.0"
+edition = "2021"
+description = "Privacy-respecting page view analytics. No cookies, no IPs, no PII stored."
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+aws-sdk-dynamodb = "1"
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+tower = { version = "0.5", features = ["limit"] }
+tower-http = { version = "0.6", features = ["cors", "timeout"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+futures-util = "0.3"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true

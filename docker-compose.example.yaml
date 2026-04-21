@@ -1,0 +1,24 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  analytics:
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TABLE_NAME=${TABLE_NAME}
+      - AWS_REGION=${AWS_REGION}
+      - SITE_ORIGIN=${SITE_ORIGIN}
+      - SITEMAP_URL=${SITEMAP_URL}
+      - PORT=3001
+
+volumes:
+  caddy_data:
+  caddy_config:
