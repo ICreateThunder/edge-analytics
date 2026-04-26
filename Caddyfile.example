@@ -1,3 +1,9 @@
 analytics.example.com {
 	reverse_proxy localhost:3001
+
+	header X-Robots-Tag "noindex, nofollow, nosnippet, noarchive"
+
+	handle /robots.txt {
+		respond "User-agent: *\nDisallow: /" 200
+	}
 }
