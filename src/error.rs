@@ -9,6 +9,7 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub(crate) enum Error {
     DynamoScan(SdkError<ScanError>),
+    #[allow(dead_code)] // From impl exists for future ? usage on update_item calls
     DynamoUpdate(SdkError<UpdateItemError>),
     SitemapFetch(reqwest::Error),
     SitemapTooLarge(u64),

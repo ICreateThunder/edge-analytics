@@ -186,9 +186,8 @@ async fn main() {
             (r#"{"path":"/../../etc/passwd"}"#, "Path traversal", 204),
             (r#"{"path":"/nonexistent-page"}"#, "Unlisted path", 204),
             (r#"not json at all"#, "Malformed JSON", 204),
-            // Empty path normalises to "/" which IS a valid whitelisted path,
-            // so it gets accepted (204) rather than rejected
-            (r#"{"path":""}"#, "Empty path (→ /)", 204),
+            // Empty path is rejected before reaching the whitelist
+            (r#"{"path":""}"#, "Empty path", 204),
         ];
         for (body, label, expected) in cases {
             let start = Instant::now();

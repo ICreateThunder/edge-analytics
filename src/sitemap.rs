@@ -78,6 +78,7 @@ pub(crate) fn is_valid_path(path: &str) -> bool {
     path == "/"
         || (path.starts_with('/')
             && path.len() <= 128
+            && !path.contains("//")
             && path
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '-' || c == '/'))
@@ -104,5 +105,7 @@ mod tests {
         assert!(!is_valid_path("/path?query=1"));
         assert!(!is_valid_path("/../../etc/passwd"));
         assert!(!is_valid_path(&format!("/{}", "a".repeat(128))));
+        assert!(!is_valid_path("//double-slash"));
+        assert!(!is_valid_path("/foo//bar"));
     }
 }
