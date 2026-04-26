@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>http://localhost:9999/</loc></url>
+  <url><loc>http://localhost:9999/about</loc></url>
+  <url><loc>http://localhost:9999/projects</loc></url>
+  <url><loc>http://localhost:9999/projects/oxiflight</loc></url>
+  <url><loc>http://localhost:9999/projects/edge-analytics</loc></url>
+  <url><loc>http://localhost:9999/blog</loc></url>
+  <url><loc>http://localhost:9999/blog/rust-on-arm</loc></url>
+  <url><loc>http://localhost:9999/blog/privacy-analytics</loc></url>
+  <url><loc>http://localhost:9999/contact</loc></url>
+  <url><loc>http://localhost:9999/resume</loc></url>
+</urlset>

@@ -85,6 +85,45 @@ aws dynamodb query --table-name your-table \
 aws dynamodb scan --table-name your-table --projection-expression "path, dateHour, views"
 ```
 
+## Benchmarking
+
+A stress test suite is included behind the `bench` feature flag. It requires Docker (for DynamoDB Local) and exercises:
+
+- Input validation (oversized bodies, XSS, path traversal, malformed JSON)
+- Rate limiter correctness (verifies engagement at exactly 60 requests)
+- Sustained throughput, connection storms, and mixed workloads
+- Latency percentiles (p50, p95, p99) and throughput (req/s)
+
+### Quick start
+
+```bash
+./tests/bench.sh
+```
+
+This starts DynamoDB Local + a sitemap mock via Docker Compose, builds the server and stress binary, runs all tests, and tears everything down.
+
+### Custom sitemap
+
+To test against your own site's paths, override the sitemap and origin:
+
+```bash
+SITEMAP_URL=https://example.com/sitemap.xml \
+SITE_ORIGIN=https://example.com \
+    ./tests/bench.sh
+```
+
+### Manual run
+
+```bash
+# Build with bench feature
+cargo build --release --features bench
+
+# Run stress binary against any running instance
+SITEMAP_URL=https://example.com/sitemap.xml \
+SITE_ORIGIN=https://example.com \
+    ./target/release/stress http://localhost:3001
+```
+
 ## License
 
 MIT

@@ -1,0 +1,13 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory"]
+
+  sitemap:
+    image: nginx:alpine
+    ports:
+      - "8888:80"
+    volumes:
+      - ./tests/sitemap.xml:/usr/share/nginx/html/sitemap.xml:ro

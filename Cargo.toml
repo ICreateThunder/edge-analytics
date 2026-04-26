@@ -3,6 +3,8 @@ name = "edge-analytics"
 version = "0.1.0"
 edition = "2021"
 description = "Privacy-respecting page view analytics. No cookies, no IPs, no PII stored."
+autobenches = false
+autotests = false
 
 [dependencies]
 axum = "0.8"
@@ -17,6 +19,20 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 futures-util = "0.3"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+[features]
+bench = []
+
+[[bin]]
+name = "stress"
+path = "tests/stress.rs"
+required-features = ["bench"]
+
+# Unit tests live in src/main.rs
+[[test]]
+name = "unit"
+path = "src/main.rs"
+harness = true
 
 [profile.release]
 opt-level = "z"
