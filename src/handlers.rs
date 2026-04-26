@@ -191,11 +191,10 @@ pub(crate) async fn track_view(
     headers: axum::http::HeaderMap,
     body: axum::body::Bytes,
 ) -> std::result::Result<StatusCode, Error> {
-    // Reject non-JSON content types
-    if let Some(ct) = headers.get(axum::http::header::CONTENT_TYPE) {
-        if !ct.as_bytes().starts_with(b"application/json") {
-            return Ok(StatusCode::NO_CONTENT);
-        }
+    // Require application/json — our frontend uses fetch(), not sendBeacon
+    match headers.get(axum::http::header::CONTENT_TYPE) {
+        Some(ct) if ct.as_bytes().starts_with(b"application/json") => {}
+        _ => return Ok(StatusCode::NO_CONTENT),
     }
 
     if body.len() > MAX_VIEW_BODY_BYTES {
