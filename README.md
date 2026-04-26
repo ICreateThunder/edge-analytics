@@ -126,4 +126,4 @@ SITE_ORIGIN=https://example.com \
 
 ## License
 
-MIT
+AGPL-3.0 — see [LICENSE](LICENSE).
