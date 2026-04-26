@@ -63,7 +63,9 @@ impl Metrics {
         };
 
         println!("\n\x1b[1;36m── {label} ──\x1b[0m");
-        println!("  Requests:     {total}  ({success} ok, {rate_limited} rate-limited, {errors} errors)");
+        println!(
+            "  Requests:     {total}  ({success} ok, {rate_limited} rate-limited, {errors} errors)"
+        );
         println!("  Throughput:   {rps:.0} req/s");
         println!(
             "  Latency:      p50={:.2}ms  p95={:.2}ms  p99={:.2}ms  max={:.2}ms",
@@ -163,7 +165,11 @@ async fn main() {
         let ok = status == 413;
         println!(
             "  {} status={status} latency={:.2}ms",
-            if ok { "\x1b[32mPASS\x1b[0m" } else { "\x1b[31mFAIL\x1b[0m" },
+            if ok {
+                "\x1b[32mPASS\x1b[0m"
+            } else {
+                "\x1b[31mFAIL\x1b[0m"
+            },
             elapsed.as_secs_f64() * 1000.0
         );
     }
@@ -172,7 +178,11 @@ async fn main() {
     {
         println!("\n\x1b[1;36m── Invalid path rejection ──\x1b[0m");
         let cases = vec![
-            (r#"{"path":"/<script>alert(1)</script>"}"#, "XSS attempt", 204),
+            (
+                r#"{"path":"/<script>alert(1)</script>"}"#,
+                "XSS attempt",
+                204,
+            ),
             (r#"{"path":"/../../etc/passwd"}"#, "Path traversal", 204),
             (r#"{"path":"/nonexistent-page"}"#, "Unlisted path", 204),
             (r#"not json at all"#, "Malformed JSON", 204),
@@ -194,7 +204,11 @@ async fn main() {
             let ok = status == expected;
             println!(
                 "  {} {label:<20} status={status} (expected {expected}) latency={:.2}ms",
-                if ok { "\x1b[32mPASS\x1b[0m" } else { "\x1b[31mFAIL\x1b[0m" },
+                if ok {
+                    "\x1b[32mPASS\x1b[0m"
+                } else {
+                    "\x1b[31mFAIL\x1b[0m"
+                },
                 elapsed.as_secs_f64() * 1000.0
             );
         }

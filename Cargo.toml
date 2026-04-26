@@ -28,11 +28,6 @@ name = "stress"
 path = "tests/stress.rs"
 required-features = ["bench"]
 
-# Unit tests live in src/main.rs
-[[test]]
-name = "unit"
-path = "src/main.rs"
-harness = true
 
 [profile.release]
 opt-level = "z"
