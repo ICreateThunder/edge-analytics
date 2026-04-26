@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/cc-debian13:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY edge-analytics-binary /analytics
 
