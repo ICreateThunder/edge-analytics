@@ -1,12 +1,8 @@
-FROM debian:trixie-slim
+FROM gcr.io/distroless/cc-debian12:nonroot
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN useradd -r -s /usr/sbin/nologin analytics
+COPY edge-analytics-binary /analytics
 
-COPY edge-analytics-binary /usr/local/bin/analytics
-
-USER analytics
 ENV PORT=3001
 EXPOSE 3001
 
-ENTRYPOINT ["analytics"]
+ENTRYPOINT ["/analytics"]
