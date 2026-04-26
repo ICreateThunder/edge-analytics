@@ -1,6 +1,7 @@
 use crate::error::{Error, Result};
 use crate::state::{AppState, RefreshGuard};
 use crate::time;
+use aws_sdk_dynamodb::operation::update_item::UpdateItemError;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
@@ -17,10 +18,10 @@ const MAX_VIEW_BODY_BYTES: usize = 1024;
 const MAX_VIEWS_PER_HOUR: i64 = 1000;
 
 /// How long to cache /stats responses
-pub const STATS_CACHE_SECS: u64 = 300;
+pub(crate) const STATS_CACHE_SECS: u64 = 300;
 
 /// Maximum requests to /stats per minute (shared across all callers)
-pub const STATS_RATE_LIMIT_PER_MINUTE: u32 = 12;
+pub(crate) const STATS_RATE_LIMIT_PER_MINUTE: u32 = 12;
 
 #[derive(Deserialize)]
 struct ViewRequest {
@@ -28,14 +29,14 @@ struct ViewRequest {
 }
 
 #[derive(Serialize, Clone)]
-pub struct StatusResponse {
+pub(crate) struct StatusResponse {
     status: &'static str,
     uptime_seconds: u64,
     paths_monitored: usize,
 }
 
 #[derive(Serialize, Clone)]
-pub struct StatsResponse {
+pub(crate) struct StatsResponse {
     total_views: i64,
     today: i64,
     top_pages: Vec<PageStats>,
@@ -47,7 +48,7 @@ struct PageStats {
     views: i64,
 }
 
-pub async fn health_status(State(state): State<AppState>) -> Result<Json<StatusResponse>> {
+pub(crate) async fn health_status(State(state): State<AppState>) -> Result<Json<StatusResponse>> {
     if !state.enable_status {
         return Err(Error::NotFound);
     }
@@ -66,7 +67,7 @@ pub async fn health_status(State(state): State<AppState>) -> Result<Json<StatusR
     }))
 }
 
-pub async fn stats(State(state): State<AppState>) -> Result<Json<StatsResponse>> {
+pub(crate) async fn stats(State(state): State<AppState>) -> Result<Json<StatsResponse>> {
     // Rate limit /stats to prevent scan abuse
     {
         let mut bucket = state
@@ -94,10 +95,12 @@ pub async fn stats(State(state): State<AppState>) -> Result<Json<StatsResponse>>
         .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
         .is_err()
     {
+        // Another task is already refreshing; return stale cache or 503
         let cache = state.stats_cache.read().unwrap_or_else(|e| e.into_inner());
         if let Some((_, ref data)) = *cache {
             return Ok(Json(StatsResponse::clone(data)));
         }
+        return Err(Error::StatsUnavailable);
     }
 
     // Guard clears the flag even if refresh_stats panics
@@ -106,7 +109,7 @@ pub async fn stats(State(state): State<AppState>) -> Result<Json<StatsResponse>>
     refresh_stats(&state).await
 }
 
-pub async fn refresh_stats(state: &AppState) -> Result<Json<StatsResponse>> {
+async fn refresh_stats(state: &AppState) -> Result<Json<StatsResponse>> {
     let today = time::date();
 
     let mut total_views: i64 = 0;
@@ -183,7 +186,7 @@ pub async fn refresh_stats(state: &AppState) -> Result<Json<StatsResponse>> {
     Ok(Json(Arc::unwrap_or_clone(response)))
 }
 
-pub async fn track_view(
+pub(crate) async fn track_view(
     State(state): State<AppState>,
     body: axum::body::Bytes,
 ) -> std::result::Result<StatusCode, Error> {
@@ -249,9 +252,15 @@ pub async fn track_view(
         .send()
         .await;
 
-    if let Err(e) = result {
-        // DynamoDB conditional check failures are expected when the hourly cap is reached
-        tracing::error!("DynamoDB write failed: {}", e);
+    match result {
+        Ok(_) => {}
+        Err(ref e) if is_conditional_check_failure(e) => {
+            // Expected: hourly cap reached for this path
+            tracing::debug!("hourly view cap reached");
+        }
+        Err(e) => {
+            tracing::error!("DynamoDB write failed: {e}");
+        }
     }
 
     // Opportunistic early cache refresh
@@ -275,6 +284,14 @@ pub async fn track_view(
     }
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Check if an UpdateItem SdkError is a ConditionalCheckFailedException
+fn is_conditional_check_failure(err: &aws_sdk_dynamodb::error::SdkError<UpdateItemError>) -> bool {
+    matches!(
+        err.as_service_error(),
+        Some(UpdateItemError::ConditionalCheckFailedException(_))
+    )
 }
 
 /// Probabilistic early cache refresh for /stats.

@@ -11,7 +11,7 @@ const MAX_SITEMAP_PATHS: usize = 500;
 ///
 /// Uses a pre-configured client with redirects disabled and streams the
 /// response with a size cap to prevent memory exhaustion.
-pub async fn fetch_paths(
+pub(crate) async fn fetch_paths(
     client: &reqwest::Client,
     sitemap_url: &str,
     site_origin: &str,
@@ -74,7 +74,7 @@ pub async fn fetch_paths(
     Ok(paths)
 }
 
-pub fn is_valid_path(path: &str) -> bool {
+pub(crate) fn is_valid_path(path: &str) -> bool {
     path == "/"
         || (path.starts_with('/')
             && path.len() <= 128

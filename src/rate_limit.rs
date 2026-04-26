@@ -3,25 +3,25 @@ use std::time::Instant;
 
 const BUCKET_WINDOW_SECS: u64 = 60;
 
-pub struct RateLimiter {
+pub(crate) struct RateLimiter {
     buckets: HashMap<String, TokenBucket>,
     capacity: u32,
 }
 
-pub struct TokenBucket {
+pub(crate) struct TokenBucket {
     tokens: u32,
     last_refill: Instant,
 }
 
 impl RateLimiter {
-    pub fn new(capacity: u32) -> Self {
+    pub(crate) fn new(capacity: u32) -> Self {
         Self {
             buckets: HashMap::new(),
             capacity,
         }
     }
 
-    pub fn allow(&mut self, key: &str) -> bool {
+    pub(crate) fn allow(&mut self, key: &str) -> bool {
         let now = Instant::now();
         let capacity = self.capacity;
         let bucket = self.buckets.entry(key.to_string()).or_insert(TokenBucket {
@@ -32,7 +32,7 @@ impl RateLimiter {
         bucket.try_consume(now, capacity)
     }
 
-    pub fn cleanup(&mut self) {
+    pub(crate) fn cleanup(&mut self) {
         let now = Instant::now();
         self.buckets
             .retain(|_, b| now.duration_since(b.last_refill).as_secs() < BUCKET_WINDOW_SECS * 5);
@@ -40,14 +40,14 @@ impl RateLimiter {
 }
 
 impl TokenBucket {
-    pub fn new(capacity: u32) -> Self {
+    pub(crate) fn new(capacity: u32) -> Self {
         Self {
             tokens: capacity,
             last_refill: Instant::now(),
         }
     }
 
-    pub fn try_consume(&mut self, now: Instant, capacity: u32) -> bool {
+    pub(crate) fn try_consume(&mut self, now: Instant, capacity: u32) -> bool {
         let elapsed = now.duration_since(self.last_refill).as_secs();
         if elapsed >= BUCKET_WINDOW_SECS {
             self.tokens = capacity;

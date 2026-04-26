@@ -10,8 +10,9 @@ use axum::Router;
 use state::AppState;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 /// Maximum requests per path per minute
 const MAX_REQUESTS_PER_MINUTE: u32 = 60;
@@ -77,7 +78,7 @@ async fn main() {
     // following redirects would be an SSRF vector to internal services
     let http_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(Duration::from_secs(10))
         .build()
         .expect("failed to build HTTP client");
 
@@ -123,8 +124,7 @@ async fn main() {
     let refresh_site_origin = Arc::clone(&site_origin);
     let refresh_client = http_client;
     tokio::spawn(async move {
-        let mut interval =
-            tokio::time::interval(std::time::Duration::from_secs(SITEMAP_REFRESH_SECS));
+        let mut interval = tokio::time::interval(Duration::from_secs(SITEMAP_REFRESH_SECS));
         interval.tick().await;
         loop {
             interval.tick().await;
@@ -144,7 +144,7 @@ async fn main() {
     // Spawn periodic cleanup of rate limiter buckets
     let limiter = state.rate_limiter.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+        let mut interval = tokio::time::interval(Duration::from_secs(300));
         loop {
             interval.tick().await;
             limiter.lock().unwrap_or_else(|e| e.into_inner()).cleanup();
@@ -169,10 +169,18 @@ async fn main() {
         .route("/views", post(handlers::track_view))
         .route("/status", get(handlers::health_status))
         .route("/stats", get(handlers::stats))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::X_CONTENT_TYPE_OPTIONS,
+            axum::http::HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("no-store"),
+        ))
         .layer(cors)
         .layer(tower_http::timeout::TimeoutLayer::with_status_code(
             axum::http::StatusCode::REQUEST_TIMEOUT,
-            std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS),
+            Duration::from_secs(REQUEST_TIMEOUT_SECS),
         ))
         .layer(tower::limit::ConcurrencyLimitLayer::new(MAX_CONNECTIONS))
         .with_state(state);
@@ -182,13 +190,33 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .expect("failed to bind TCP listener");
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .expect("server error");
 
-    tracing::info!(
-        "shutting down, waiting up to {}s for in-flight requests",
-        GRACEFUL_SHUTDOWN_SECS
-    );
+    // Graceful shutdown with enforced deadline:
+    // 1. Signal fires → axum stops accepting, drains in-flight requests
+    // 2. Deadline task forces exit if drain exceeds GRACEFUL_SHUTDOWN_SECS
+    let notify = Arc::new(tokio::sync::Notify::new());
+    let notify_deadline = Arc::clone(&notify);
+
+    let deadline_handle = tokio::spawn(async move {
+        notify_deadline.notified().await;
+        tracing::info!(
+            "draining in-flight requests ({}s deadline)",
+            GRACEFUL_SHUTDOWN_SECS
+        );
+        tokio::time::sleep(Duration::from_secs(GRACEFUL_SHUTDOWN_SECS)).await;
+        tracing::warn!("graceful shutdown deadline reached, forcing exit");
+        std::process::exit(1);
+    });
+
+    if let Err(e) = axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            notify.notify_one();
+        })
+        .await
+    {
+        tracing::error!("server error: {e}");
+    }
+
+    deadline_handle.abort();
 }

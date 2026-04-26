@@ -1,15 +1,15 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Returns current UTC date as "YYYY-MM-DD"
-pub fn date() -> String {
+pub(crate) fn date() -> String {
     date_hour()[..10].to_string()
 }
 
 /// Returns current UTC date+hour as "YYYY-MM-DDTHH" without pulling in chrono
-pub fn date_hour() -> String {
+pub(crate) fn date_hour() -> String {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("system clock before UNIX epoch")
+        .unwrap_or_default()
         .as_secs();
     let days = secs / 86400;
     let hour = (secs % 86400) / 3600;

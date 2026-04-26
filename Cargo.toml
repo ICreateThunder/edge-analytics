@@ -14,7 +14,7 @@ serde_json = "1"
 aws-sdk-dynamodb = "1"
 aws-config = { version = "1", features = ["behavior-version-latest"] }
 tower = { version = "0.5", features = ["limit"] }
-tower-http = { version = "0.6", features = ["cors", "timeout"] }
+tower-http = { version = "0.6", features = ["cors", "timeout", "set-header"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 futures-util = "0.3"
 tracing = "0.1"
